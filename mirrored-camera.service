@@ -1,0 +1,8 @@
+[Unit]
+Description=Mirrored Camera
+
+[Service]
+EnvironmentFile=-%h/.config/mirrored-camera/camera.conf
+ExecStart=%h/.config/omarchy/plugins/aras.mirrored-camera/scripts/mirrored-camera run
+TimeoutStopSec=5
+SuccessExitStatus=255

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "aras.mirrored-camera",
+  "name": "Mirrored Camera",
+  "version": "1.1.0",
+  "author": "Aras",
+  "description": "One-click mirrored webcam for the Omarchy bar",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "BarWidget.qml"},
+  "barWidget": {
+    "displayName": "Mirrored Camera",
+    "description": "Toggle a mirrored virtual webcam and see its live status",
+    "category": "AudioVideo",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

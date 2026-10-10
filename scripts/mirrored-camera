@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+unit=mirrored-camera.service
+
+notify() {
+  printf '%s\n' "$1" >&2
+  if command -v notify-send >/dev/null; then
+    env -u LD_LIBRARY_PATH notify-send 'Mirrored Camera' "$1" || true
+  fi
+}
+
+status() {
+  local info load=not-found active=inactive
+  info=$(systemctl --user show "$unit" -p LoadState -p ActiveState 2>/dev/null) || true
+  while IFS='=' read -r key value; do
+    case "$key" in
+      LoadState) load=$value ;;
+      ActiveState) active=$value ;;
+    esac
+  done <<< "$info"
+  if [[ $load != loaded ]]; then printf 'setup\n'; return; fi
+  case "$active" in
+    active) printf 'on\n' ;;
+    activating) printf 'starting\n' ;;
+    deactivating) printf 'stopping\n' ;;
+    failed) printf 'failed\n' ;;
+    *) printf 'off\n' ;;
+  esac
+}
+
+case "${1:-toggle}" in
+  status) status ;;
+  run)
+    # The user service supplies overrides through its EnvironmentFile.
+    camera=${CAMERA_DEVICE:-}
+    if [[ -z $camera ]]; then
+      for candidate in /dev/v4l/by-id/*-video-index0; do
+        [[ -e $candidate ]] || continue
+        camera=$candidate
+        break
+      done
+      camera=${camera:-/dev/video0}
+    fi
+    output=${CAMERA_OUTPUT:-/dev/video10}
+    if [[ ! -e $camera || ! -e $output || $camera -ef $output ]]; then
+      printf 'Camera input or virtual output is missing, or both refer to the same device. Check camera.conf.\n' >&2
+      exit 1
+    fi
+    exec ffmpeg -nostdin -hide_banner -loglevel warning \
+      -f v4l2 -input_format "${CAMERA_FORMAT:-mjpeg}" \
+      -video_size "${CAMERA_SIZE:-1280x720}" -framerate "${CAMERA_FPS:-30}" \
+      -i "$camera" -an -vf hflip,format=yuv420p -c:v rawvideo -f v4l2 "$output"
+    ;;
+  toggle)
+    exec 9>"${XDG_RUNTIME_DIR:?No user session runtime directory}/mirrored-camera.lock"
+    flock -n 9 || exit 0
+    state=$(status)
+    if [[ $state == on || $state == starting || $state == stopping ]]; then
+      systemctl --user stop "$unit"
+    elif [[ $state == setup ]]; then
+      notify 'Setup required. Run scripts/install.sh from the plugin folder.'
+      exit 1
+    else
+      systemctl --user start "$unit"
+      sleep 2
+      if [[ $(status) != on ]]; then
+        notify 'Could not start. Close other camera apps. Check: journalctl --user -u mirrored-camera.service -n 20'
+        exit 1
+      fi
+    fi
+    ;;
+  *) printf 'Usage: mirrored-camera [toggle|status|run]\n' >&2; exit 2 ;;
+esac

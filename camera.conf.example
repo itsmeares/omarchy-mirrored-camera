@@ -1,0 +1,6 @@
+# Leave CAMERA_DEVICE empty to select the first USB camera, then /dev/video0.
+CAMERA_DEVICE=
+CAMERA_OUTPUT=/dev/video10
+CAMERA_FORMAT=mjpeg
+CAMERA_SIZE=1280x720
+CAMERA_FPS=30

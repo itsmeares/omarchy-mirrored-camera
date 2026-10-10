@@ -1,0 +1,17 @@
+name: Check
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate shell scripts
+        run: |
+          bash -n scripts/mirrored-camera scripts/install.sh scripts/setup-system.sh
+          shellcheck scripts/mirrored-camera scripts/install.sh scripts/setup-system.sh
+      - name: Test backend
+        run: python3 -m unittest discover -s tests -v
+      - name: Validate manifest JSON
+        run: python3 -m json.tool manifest.json > /dev/null
